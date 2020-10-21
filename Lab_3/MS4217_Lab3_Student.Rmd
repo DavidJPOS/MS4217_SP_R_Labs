@@ -1,0 +1,112 @@
+---
+title: "MS4217: Lab 3"
+author: "Name & ID Number"
+date: "Date of lab session"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(tidyverse)
+library(latex2exp)
+library(expm)
+
+write_matrix <- function(x) {
+  begin <- "\\begin{pmatrix}"
+  end <- "\\end{pmatrix}"
+  X <-
+    apply(x, 1, function(x) {
+      paste(
+        paste(x, collapse = "&"),
+        "\\\\"
+      )
+    })
+  paste(c(begin, X, end), collapse = "")
+}
+
+# P_index <- read.delim(file = './Fire_weather_index.prn', sep = ' ')
+# P_wet <- read.delim(file = './Wetland_distribution.prn', sep = '|')
+
+library(cowplot)
+theme_set(theme_cowplot())
+
+```
+
+## Metastatic Cancer Progression 
+
+The metastatic progression of lung cancer throughout the body is modeled in Newton et al. (2012). The 50 possible metastatic locations for cancer spread are the state space for a Markov chain model. Matrix entries were estimated from autopsy data extracted from 3,827 patients. The progress of the disease is observed as a random walk on the weighted, directed graph in Figure 2.6. Site 23 represents the lung. An important quantity associated with this model is the mean first-passage time, the average number of steps it takes to move from the lung to each of the other locations in the body.
+
+Medical researchers can use simulation to study the progression of lung cancer in the body.
+
+### Excerise 1:
+
+a. Read in the data and examine the matrix. 
+a. Examine its class. 
+a. If needed convert the object you have into a matrix.
+a. Formate the rows and columns of the matrix.
+
+```{r read-in-data,echo=FALSE}
+# code goes here
+
+
+```
+
+### Excerise 2:
+
+Extract the site names for each state in the matrix and generate a summary table using `kable` from the `knitr` package. 
+
+```{r state-mapping}
+# code goes here
+
+```
+
+### Excerise 3:
+
+Create a function to simulate the path of a Markov chain.
+
+```{r markov-function}
+# code goes here
+
+
+```
+
+
+### Excerise 4: 
+
+a. Use the previous function to estimate the probability distribution for $X_8$. 
+a. Visulate the probaility using a bar plot for each site. 
+a. What are the three most common sites to observe cancer after 8 transitions? 
+
+```{r}
+# code goes here
+
+
+```
+
+*Comment goes here*
+
+### Excerise 5:
+
+a. Compare this to the exact probability using direct matrix multiplication. 
+a. Comment of the difference between the simulation and exact probability. 
+
+```{r}
+library(expm)
+
+
+```
+
+*Comment goes here*
+
+### Excerise 6:
+
+a. Extend this above to 1000 MC draws from the Markov chain simulation to calculate the mean first passage. 
+a. Generate a summary table of the results displaying the states with the 5 shortest mean first passage times.
+a. What insight might you be able to give medical research. 
+
+```{r}
+
+```
+
+*Comment goes here*
