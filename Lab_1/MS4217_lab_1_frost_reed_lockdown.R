@@ -31,6 +31,10 @@ reed_frost_realisation <- function(z = 0.003, steps = 30, sus_0 =497, inf_0 = 3,
   realisation_df$sus[1] <- sus_0 # initial conditions
   realisation_df$inf[1] <- inf_0
   
+  #######
+  ## You'll have to edit the code below to implement a lockdown within the simulations
+  ########
+  
   for(t in 1:(steps-1)){
     # if( what condition holds if we are not in lockdown?){ 
       ### !!!! This is where the magic happens, if we are outside of lockdown time
