@@ -32,15 +32,16 @@ reed_frost_realisation <- function(z = 0.003, steps = 30, sus_0 =497, inf_0 = 3,
   realisation_df$inf[1] <- inf_0
   
   for(t in 1:(steps-1)){
-    if(t <= lockdown_time){ 
+    # if( what condition holds if we are not in lockdown?){ 
       ### !!!! This is where the magic happens, if we are outside of lockdown time
       realisation_df$inf[t+1] <- rbinom(1, realisation_df$sus[t],1-(1-z)^realisation_df$inf[t])
       realisation_df$sus[t+1] <- realisation_df$sus[t] - realisation_df$inf[t+1]
-    }else{
+    
+    # }else{ # if we are in a lockdown what happend to the probability z below? 
       ### !!! the model works as normal, if we are inside lockdown time then the infection prob is replaced by z_lockdown
-      realisation_df$inf[t+1] <- rbinom(1, realisation_df$sus[t],1-(1-z_lockdown)^realisation_df$inf[t])
-      realisation_df$sus[t+1] <- realisation_df$sus[t] - realisation_df$inf[t+1]
-    }
+      # realisation_df$inf[t+1] <- rbinom(1, realisation_df$sus[t],1-(1- ##Something goes in here##)^realisation_df$inf[t])
+      # realisation_df$sus[t+1] <- realisation_df$sus[t] - realisation_df$inf[t+1]
+    # }
   }
   return(realisation_df)
 }
@@ -62,7 +63,10 @@ mc_reed_frost <- function(M = 500, rf_par = list(z = 0.002, steps = 30, sus_0 =4
 # simulate with lockdown ----------------------------------------------------------------------
 
 
-rf_par <- list(z = 0.003, steps = 30, sus_0 =497, inf_0 = 3, lockdown_time = 4, z_lockdown = 0.0025)
+rf_par <- list(z = 0.003, steps = 30, sus_0 =497, inf_0 = 3, 
+                lockdown_time = ,## What goes in here??
+                z_lockdown = ## What goes in here??
+                )
 z_vec <- seq(from = 0.003, to = 0.005, by = 0.0005)
 
 var_z_lockdown_df <- tibble()
@@ -73,7 +77,6 @@ for(z_i in 1:length(z_vec)){
   var_z_lockdown_df <- bind_rows(var_z_lockdown_df, temp_df)
   print(z_i/length(z_vec))
 }
-
 
 var_z_lockdown_summ <- 
   var_z_lockdown_df %>% group_by(time, z) %>% 
@@ -150,24 +153,13 @@ var_z_summ %>%
   xlab('Time') + 
   ggtitle("Reed-Frost Simulation Results") 
 
-# what is the expected change in the number of cases? 
-var_z_summ %>% 
-  ggplot(aes(x = time, y = sus_mean_diff, color = factor(z))) + 
+ggplot(data = var_z_summ, aes(x = time, y = mean_inf, color = factor(z))) + # plot the no lockdown data
   geom_point() + 
   geom_line() +
-  geom_hline(yintercept = 0, color = 'grey', linetype = 'dashed') +  
-  labs(color='Prob of Inf') +
-  ylab('Difference in Susceptible') + 
-  xlab('Time') + 
-  ggtitle("Reed-Frost Simulation Results") 
-
-
-ggplot(data = var_z_summ, aes(x = time, y = mean_inf, color = factor(z))) + 
-  geom_point() + 
-  geom_line() +
+  # add a layer with different data, the lockdown information, change the linetype to you can see it
   geom_line(data = var_z_lockdown_summ, aes(x = time, y = mean_inf, color = factor(z)), linetype = 'dashed') +
   geom_hline(yintercept = 0, color = 'grey', linetype = 'dashed') +  
-  facet_wrap(~z, scale = 'free') + 
+  facet_wrap(~z) + # tell ggplot that we want a seperate plot for each z value. you can add 'scale = 'free'' to have the 
   labs(color='Prob of Inf') +
   ylab('Daily number of infected cases') + 
   xlab('Time') + 
