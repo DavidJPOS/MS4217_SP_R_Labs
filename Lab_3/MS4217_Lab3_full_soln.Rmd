@@ -1,0 +1,185 @@
+---
+title: "MS4217: Lab 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(tidyverse)
+library(latex2exp)
+library(expm)
+
+write_matrix <- function(x) {
+  begin <- "\\begin{pmatrix}"
+  end <- "\\end{pmatrix}"
+  X <-
+    apply(x, 1, function(x) {
+      paste(
+        paste(x, collapse = "&"),
+        "\\\\"
+      )
+    })
+  paste(c(begin, X, end), collapse = "")
+}
+
+# P_index <- read.delim(file = './Fire_weather_index.prn', sep = ' ')
+# P_wet <- read.delim(file = './Wetland_distribution.prn', sep = '|')
+
+library(cowplot)
+theme_set(theme_cowplot())
+
+```
+
+## Metastatic Cancer Progression 
+
+The metastatic progression of lung cancer throughout the body is modeled in Newton et al. (2012). The 50 possible metastatic locations for cancer spread are the state space for a Markov chain model. Matrix entries were estimated from autopsy data extracted from 3,827 patients. The progress of the disease is observed as a random walk on the weighted, directed graph in Figure 2.6. Site 23 represents the lung. An important quantity associated with this model is the mean first-passage time, the average number of steps it takes to move from the lung to each of the other locations in the body.
+
+Medical researchers can use simulation to study the progression of lung cancer in the body.
+
+### Excerise 1:
+
+a. Read in the data and examine the matrix. 
+a. Examine its class. 
+a. If needed convert the object you have into a matrix.
+a. Formate the rows and columns of the matrix.
+
+```{r read-in-data,echo=FALSE}
+# your code goes here
+P_lung_df <- read_csv(file = './lungcancer.csv') # read in the data
+class(P_lung_df) # probably better to have this as a class! 
+P_lung <- as.matrix(P_lung_df)
+
+colnames(P_lung) # what are the states
+rownames(P_lung) <- colnames(P_lung) # save the row names
+```
+
+### Excerise 2:
+
+Extract the site names for each state in the matrix and generate a summary table using `kable` from the `knitr` package. 
+
+```{r state-mapping}
+state_names <- colnames(P_lung) # for reference create a vector of state_names (the labels)
+state_names_df <- tibble(state_no = 1:length(state_names), state_names = state_names) # create a table
+state_names_df %>% 
+  knitr::kable(
+    col.names = c('i','State $S_i$'), caption = 'State labels for cancer dataset.'
+    ) # print the table to screen
+```
+
+### Excerise 3:
+
+Create a function to simulate the path of a Markov chain.
+
+```{r markov-function}
+markov <- function(init, mat, n, labels){
+  # one line if statement to add labels if not present
+  if(missing(labels)) labels <- 1:length(init)
+  
+  simlist <- numeric(n+1) # where we are going to store each transition
+  states <- 1:length(init) # How many states do we have?  
+  simlist[1] <- sample(states,1,prob=init) # what state do we start in from the inital state?
+  
+  for(i in 2:(n+1)){ # from state i-1 where do we go next?
+    # sample the prob vec for trans from x_{t-1} to X_{t}
+    simlist[i] <- sample(states,1,prob=mat[simlist[i-1],]) 
+  }
+  return(labels[simlist])
+}
+
+```
+
+
+### Excerise 4: 
+
+a. Use the previous function to estimate the probability distribution for $X_8$. 
+a. Visulate the probaility using a bar plot for each site. 
+a. What are the three most common sites to observe cancer after 8 transitions? 
+
+```{r}
+
+init <- c(rep(0,22),1,rep(0,27))
+n <- 8 
+
+M = 1000
+mc_results <- matrix(NA, nrow = M, ncol = n+1)
+for(m in 1:M){
+  mc_results[m,] <- markov(init, P_lung, n)
+}
+
+mc_X_10_df <- tibble(sim_no = 1:M, state_no = mc_results[,9]) %>% 
+  left_join(y = state_names_df, by = 'state_no')
+
+X_10_dist <- mc_X_10_df %>% count(state_names) %>% 
+  mutate(prob = n/sum(n)) %>% 
+  arrange(desc(prob))
+
+mc_X_10_df %>% ggplot(aes(y = state_names)) + 
+  geom_bar()
+
+```
+
+
+
+### Excerise 5:
+
+a. Compare this to the exact probability using direct matrix multiplication. 
+a. Comment of the difference between the simulation and exact probability. 
+
+```{r}
+library(expm)
+
+P_10 <- P_lung %^% 5
+exact <- tibble(state_names = names(P_10[23,]), exact_prob = P_10[23,])
+
+X_10_dist <- left_join(X_10_dist, exact, by = 'state_names') %>% 
+  mutate(diff = prob - exact_prob)
+
+X_10_dist %>% ggplot(aes(x = diff)) + geom_density(fill = 'gold', alpha = 0.5) + 
+  geom_vline(xintercept = 0, linetype = 'dashed', color = "red")
+
+```
+
+
+### Excerise 6:
+
+a. Extend this above to 1000 MC draws from the Markov chain simulation to calculate the mean first passage. 
+a. Generate a summary table of the results displaying the states with the 5 shortest mean first passage times.
+a. What insight might you be able to give medical research. 
+
+```{r}
+
+M = 1000
+n = 1000
+mc_results <- matrix(NA, nrow = M, ncol = n+1)
+
+for(m in 1:M){
+  mc_results[m,] <- markov(init, P_lung, n)
+}
+
+# for each state what was the first time we came across it? 
+first_passage <- matrix(NA, ncol = 50, nrow = M)
+colnames(first_passage) <- state_names
+
+for(m in 1:nrow(mc_results)){ # m <- 1
+  for(s in 1:ncol(first_passage)){ # s <- 1
+    first_passage[m,s] <- which(mc_results[m,] == s)[1] - 1
+  }
+}
+
+first_passage[is.na(first_passage)] <- Inf
+
+
+mfp <- apply(first_passage, 2, mean)
+mfp_df <- tibble(state_names = state_names, mfp = mfp) %>% 
+  arrange(mfp)
+
+mfp_df %>% slice(1:5) %>% knitr::kable()
+
+mfp_df %>% filter(is.finite(mfp)) %>% ggplot(aes(y = state_names, x = mfp)) + 
+  geom_bar(stat="identity") + 
+  xlab("Mean first passage time") +
+  ylab(TeX('S_i'))
+```
+
+

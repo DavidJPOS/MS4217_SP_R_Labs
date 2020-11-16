@@ -1,0 +1,209 @@
+---
+title: "MS4217: Lab 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(tidyverse)
+
+write_matrix <- function(x) {
+  begin <- "\\begin{pmatrix}"
+  end <- "\\end{pmatrix}"
+  X <-
+    apply(x, 1, function(x) {
+      paste(
+        paste(x, collapse = "&"),
+        "\\\\"
+      )
+    })
+  paste(c(begin, X, end), collapse = "")
+}
+
+P_index <- read.delim(file = './Fire_weather_index.prn', sep = ' ')
+
+P_wet <- read.delim(file = './Wetland_distribution.prn', sep = '|')
+
+```
+
+## Canadian Forest FireWeather Index
+
+The Canadian Forest Fire Weather Index is widely used as a means to estimate the risk of wildfire. The Ontario Ministry of Natural Resources uses the index to classify each day’s risk of forest fire as either nil, low, moderate, high, or extreme. Martell (1999) gathered daily fire risk data over 26 years at 15 weather stations across Ontario to construct a five-state Markov chain model for the daily changes in the index. The transition matrix from one location for the early summer subseason is
+
+$$
+P_{\text{Index}}= 
+`r write_matrix(P_index)`
+$$
+
+Of interest to forest managers is the long-term probability distribution of the daily index. Regardless of the risk on any particular day, what is the long-term likelihood of risk for a typical day in the early summer?
+
+#### Excerise 1:
+
+Read in the transition matrix stored in `Fire_weather_index.prn`. It is not in a standard formate. You will have to open it and examine the file to determine the type of spacing it uses. Then choose a method to read the data in. 
+
+*Hint*: The functions `read.delim()` or `readr::read_delim()` might be of use.
+
+```{r read-in-data}
+# your code goes here
+P_index <- read.delim(file = './Fire_weather_index.prn', sep = ' ')
+```
+
+
+##### Excerise 2:
+
+Use the user defined function called `write_matrix()` to print matrix to screen using `latex` like formate.
+
+```{r, eval = FALSE, echo = TRUE}
+# code, happily, robbed from stack overflow: https://stackoverflow.com/questions/45591286/for-r-markdown-how-do-i-display-a-matrix-from-r-variable
+write_matrix <- function(x) {
+  begin <- "\\begin{pmatrix}"
+  end <- "\\end{pmatrix}"
+  X <-
+    apply(x, 1, function(x) {
+      paste(
+        paste(x, collapse = "&"),
+        "\\\\"
+      )
+    })
+  paste(c(begin, X, end), collapse = "")
+}
+```
+
+$$
+% your code goes here
+P_{\text{index}} = `r write_matrix(P_index)`
+$$
+
+##### Excerise 3:
+
+Calculate the $t$-step transition matrix for several increasing values of $t \in \{1,2,5,10,100\}$ rounded to three decimal places and display your results. Comment on the long-term risk of fire.
+
+```{r}
+
+# write you answer here
+library(expm)
+t_values <- c(1,2,5,10,100)
+P_index_list <- list()
+
+for(i in 1:length(t_values)){
+  P_index_list[[i]] <- round((as.matrix(P_index) %^% t_values[i]), 3)
+} 
+```
+
+$$
+% your code goes here
+P^{1}_{\text{index}} = `r write_matrix(P_index_list[[1]])`\\
+P^{2}_{\text{index}} = `r write_matrix(P_index_list[[2]])`\\
+P^{5}_{\text{index}} = `r write_matrix(P_index_list[[3]])`\\
+P^{10}_{\text{index}} = `r write_matrix(P_index_list[[4]])`\\
+P^{100}_{\text{index}} = `r write_matrix(P_index_list[[5]])`\\
+$$
+
+Comment on the numerical evidence for convergence of the long-run behaviour. 
+
+##### Excerise 4:
+
+Repeat the analysis from Exercise 3 for but $t \in \{1:25\}$. This time storing the results in a dataframe called `P_index_df`. The dataframe should have the following columns: `from_state`, `to_state`, `t`, `prob`
+
+*Hint*: you may need the functions `rownames_to_column()` `as_tibble()`, `unnest()`, and `pivot_longer()`.
+
+```{r}
+# your code goes here
+P_index_df <- tibble(t = seq(from = 1, to = 25), P = list(NULL))
+
+for(row_i in 1:nrow(P_index_df)){
+  mat <- round((as.matrix(P_index) %^% P_index_df$t[row_i]), 3)
+  P_index_df$P[[row_i]] <- mat %>% 
+    as.data.frame() %>% 
+    rownames_to_column() %>% 
+    as_tibble() %>% 
+    rename(from_state=rowname)
+} 
+
+P_index_df <- 
+  P_index_df %>% 
+  unnest(P) %>% 
+  pivot_longer(3:7, names_to = 'to_state', values_to = 'prob')
+
+```
+
+
+##### Excerise 5:
+
+Using the dataframe `P_index_df` generate a plot of the $t$-step transition probability of the state `Nil` to all other states.
+
+```{r}
+# your code goes here
+
+P_index_df %>% filter(from_state == 'Nil') %>% 
+  ggplot(aes(x = t, y = prob, color = to_state)) + 
+  geom_line(size = 1.2) + 
+  xlab('Number of transitions') + 
+  ylab('Probability') + 
+  labs(color = 'To state')
+
+```
+
+
+##### Excerise 6:
+
+Extend the previous graphical summary to display all other states using `facet_wrap()`.
+
+```{r}
+# your code goes here
+
+P_index_df %>% # filter(from_state == 'Nil') %>% 
+  ggplot(aes(x = t, y = prob, color = to_state)) + 
+  geom_line(size = 1.2) + 
+  xlab('Number of transitions') + 
+  ylab('Probability') + 
+  labs(color = 'To state') + 
+  facet_wrap(~from_state)
+
+```
+
+## Distribution of wetlands
+
+Changes in the distribution of wetlands in Yinchuan Plain, China are studied in Zhang et al. (2011). Wetlands are considered among the most important ecosystems on earth.AMarkov model is developed to track yearly changes in wetland type. Based on imaging and satellite data from 1991, 1999, and 2006, researchers measured annual distributions of wetland type throughout the region and estimated the Markov transition matrix as follows: 
+
+$$
+P_{\text{Wet}} = 
+`r write_matrix(P_wet)`
+$$
+The state Non refers to nonwetland regions. Based on their model, the scientists predict
+that “The wetland distribution will essentially be in a steady state in Yinchuan Plain in approximately 100 years.”
+
+#### Excerise 7
+
+By repeating sections of the previous analysis confirm, graphically, that sciences assertions. The data is stored in `Wetland_distribution.prn`.
+
+```{r}
+# your code goes here
+P_wetland_df <- tibble(t = seq(from = 1, to = 100), P = list(NULL))
+
+for(row_i in 1:nrow(P_wetland_df)){
+  mat <- round((as.matrix(P_wet) %^% P_wetland_df$t[row_i]), 3)
+  P_wetland_df$P[[row_i]] <- mat %>% 
+    as.data.frame() %>% 
+    rownames_to_column() %>% 
+    as_tibble() %>% 
+    rename(from_state=rowname)
+} 
+
+P_wetland_df <- P_wetland_df %>% 
+  unnest(P) %>% 
+  pivot_longer(3:7, names_to = 'to_state', values_to = 'prob')
+
+P_wetland_df %>% # filter(from_state == 'Nil') %>% 
+  ggplot(aes(x = t, y = prob, color = to_state)) + 
+  geom_line(size = 1.2) + 
+  xlab('Number of transitions') + 
+  ylab('Probability') + 
+  labs(color = 'To state') + 
+  facet_wrap(~from_state)
+
+
+```
+
+Yes, it will be in a steady state in 100 years, infact it will be in steady state long before than!
